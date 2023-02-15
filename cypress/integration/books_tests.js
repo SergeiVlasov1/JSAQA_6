@@ -1,55 +1,89 @@
-describe("Log in", () => {
-  it("Should successfully open the page", () => {
-    cy.contains("Books list").should("be.visible");
-  });
-
-  it("Should successfully login", () => {
-    cy.visit("/booksNode");
-    cy.login("test@test.com", "test");
-    cy.contains("Добро пожаловать").should("be.visible");
-  });
-
-  it("Should not login with empty login", () => {
-    cy.visit("/booksNode");
-    cy.login(" ", "test")
-    cy.get("#mail")
-      .then(($el) => $el[0].checkValidity())
-      .should("be.false");
-    cy.get("#mail")
-      .then(($el) => $el[0].validationMessage)
-      .should("contain", "Заполните это поле.");
-  });
-
-  it("Should not login with empty password", () => {
-    cy.visit("/booksNode");
-    cy.contains("Log in").click();
-    cy.get("#mail").type("test@test.com");
-    cy.contains("Submit").click();
-    cy.get("#pass")
-      .then(($el) => $el[0].checkValidity())
-      .should("be.false");
-  });
-});
-
-describe("Favorite", () => {
+describe('login process', () => {
   beforeEach(() => {
-    cy.visit("/");
-    cy.login("test@test.com", "test");
-    cy.contains("Добро пожаловать").should("be.visible");
+    cy.viewport(Cypress.env("viewportWidth"), Cypress.env("viewportHeight"));
+    cy.visit('/')
   });
 
-  it("Should successfully create book", () => {
-    cy.createNewBook("Harry Potter", "JR");
-    cy.contains("Harry Potter").should("be.visible");
+  it('logins successfully with correct credentials', () => {
+    cy.login('test@test.com', 'test')
+    cy.contains('Добро пожаловать test@test.com')
+      .should('be.visible');
+  })
+
+  it('shows ERROR when login is not entered', () => {
+    cy.login(null, 'test');
+    cy.get('#mail')
+      .then((el) => el[0].checkValidity())
+      .should('be.false');
+    cy.get('#mail')
+      .then((el) => el[0].validationMessage)
+      .should('contain', 'Заполните это поле.');
+  })
+
+  it('shows ERROR when password is not entered', () => {
+    cy.login('test@test.com', null);
+    cy.get('#pass')
+      .then((el) => el[0].checkValidity())
+      .should('be.false');
+    cy.get('#pass')
+      .then((el) => el[0].validationMessage)
+      .should('contain', 'Заполните это поле.');
+  })
+
+  it('shows logOut', () => {
+    cy.login('test@test.com', 'test')
+    cy.contains('Добро пожаловать test@test.com')
+      .should('be.visible');
+    cy.contains('Log out')
+      .click();
+    cy.contains('Log in')
+      .should('be.visible');
+  });
+})
+
+
+
+import { faker } from '@faker-js/faker';
+let bookData;
+
+beforeEach(() => {
+  cy.viewport(Cypress.env("viewportWidth"), Cypress.env("viewportHeight"));
+  cy.visit("/");
+  cy.login('test@test.com', 'test');
+  (bookData = {
+    title: faker.company.catchPhraseAdjective(),
+    description: faker.company.catchPhrase(),
+    author: faker.name.fullName(),
+  })
+})
+
+describe('Favorite books testing', () => {
+  it('Add book to favorite through "add new"', () => {
+    cy.createFavoriteBook(bookData);
+    cy.visit('/favorites');
+    cy.get('.card-title')
+      .should('contain', bookData.title);
   });
 
-  it("Should successfully add book to favorite", () => {
-    cy.addBookToFavorite("Harry Potter 2", "JR");
-    cy.contains("Add from favorite").should("be.visible");
+  it('Add book to favorite through "Book page"', () => {
+    cy.addBookFavorite(bookData);
+    cy.contains(bookData.title)
+      .should('be.visible')
+      .within(() => cy.get('.card-footer > .btn')
+      .click({ force: true }));
+    cy.visit('/favorites');
+    cy.contains(bookData.title)
+      .should('be.visible');
   });
 
-  it("Should successfully delete book from favorite", () => {
-    cy.delBookToFavorite("Harry Potter 3", "JR");
-    cy.contains("Delete from favorite").should("be.visible");
+	it('Delete book from favorite', () => {
+		cy.createFavoriteBook(bookData);
+    cy.visit('/favorites');
+    cy.contains(bookData.title)
+      .should('be.visible')
+      .within(() => cy.get('.card-footer > .btn')
+      .click({ force: true }));
+    cy.contains(bookData.title)
+      .should('not.exist');
   });
 });
